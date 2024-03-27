@@ -1,30 +1,18 @@
+/**
+ * [
+ *    {
+ *      id: <int>
+ *      task: <string>
+ *      timestamp: <string>
+ *      isCompleted: <boolean>
+ *    }
+ * ]
+ */
+
 const todos = [];
 const RENDER_EVENT = "render-todo";
-
-document.addEventListener("DOMContentLoaded", function () {
-  const submitForm = document.getElementById("form");
-  submitForm.addEventListener("submit", function (event) {
-    event.preventDefault();
-    addTodo();
-  });
-});
-
-function addTodo() {
-  const textTodo = document.getElementById("title").value;
-  const timestamp = document.getElementById("date").value;
-
-  const generatedID = generateId();
-  const todoObject = generateTodoObject(
-    generatedID,
-    textTodo,
-    timestamp,
-    false
-  );
-
-  todos.push(todoObject);
-
-  document.dispatchEvent(new Event(RENDER_EVENT));
-}
+const SAVED_EVENT = "saved-todo";
+const STORAGE_KEY = "TODO_APPS";
 
 function generateId() {
   return +new Date();
@@ -39,11 +27,26 @@ function generateTodoObject(id, task, timestamp, isCompleted) {
   };
 }
 
-document.addEventListener(RENDER_EVENT, function () {
-  console.log(todos);
-});
+function findTodo(todoId) {
+  for (const todoItem of todos) {
+    if (todoItem.id === todoId) {
+      return todoItem;
+    }
+  }
 
-// Make TODO
+  return null;
+}
+
+function findTodoIndex(todoId) {
+  for (const index in todos) {
+    if (todos[index].id === todoId) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 function makeTodo(todoObject) {
   const textTitle = document.createElement("h2");
   textTitle.innerText = todoObject.task;
@@ -90,22 +93,23 @@ function makeTodo(todoObject) {
   return container;
 }
 
-document.addEventListener(RENDER_EVENT, function () {
-  const uncompletedTODOList = document.getElementById("todos");
-  uncompletedTODOList.innerHTML = "";
+function addTodo() {
+  const textTodo = document.getElementById("title").value;
+  const timestamp = document.getElementById("date").value;
 
-  const completedTODOList = document.getElementById("completed-todos");
-  completedTODOList.innerHTML = "";
+  const generatedID = generateId();
+  const todoObject = generateTodoObject(
+    generatedID,
+    textTodo,
+    timestamp,
+    false
+  );
 
-  for (const todoItem of todos) {
-    const todoElement = makeTodo(todoItem);
-    if (!todoItem.isCompleted) {
-      uncompletedTODOList.append(todoElement);
-    } else {
-      completedTODOList.append(todoElement);
-    }
-  }
-});
+  todos.push(todoObject);
+
+  document.dispatchEvent(new Event(RENDER_EVENT));
+  saveData();
+}
 
 function addTaskToCompleted(todoId) {
   const todoTarget = findTodo(todoId);
@@ -114,16 +118,7 @@ function addTaskToCompleted(todoId) {
 
   todoTarget.isCompleted = true;
   document.dispatchEvent(new Event(RENDER_EVENT));
-}
-
-function findTodo(todoId) {
-  for (const todoItem of todos) {
-    if (todoItem.id === todoId) {
-      return todoItem;
-    }
-  }
-
-  return null;
+  saveData();
 }
 
 function removeTaskFromCompleted(todoId) {
@@ -142,14 +137,68 @@ function undoTaskFromCompleted(todoId) {
 
   todoTarget.isCompleted = false;
   document.dispatchEvent(new Event(RENDER_EVENT));
+  saveData();
 }
 
-function findTodoIndex(todoId) {
-  for (const index in todos) {
-    if (todos[index].id === todoId) {
-      return index;
+document.addEventListener("DOMContentLoaded", function () {
+  const submitForm = document.getElementById("form");
+  submitForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    addTodo();
+  });
+
+  if (isStorageExist) {
+    laodDataFromStorage();
+  }
+});
+
+document.addEventListener(RENDER_EVENT, function () {
+  const uncompletedTODOList = document.getElementById("todos");
+  uncompletedTODOList.innerHTML = "";
+
+  const completedTODOList = document.getElementById("completed-todos");
+  completedTODOList.innerHTML = "";
+
+  for (const todoItem of todos) {
+    const todoElement = makeTodo(todoItem);
+    if (!todoItem.isCompleted) {
+      uncompletedTODOList.append(todoElement);
+    } else {
+      completedTODOList.append(todoElement);
     }
   }
+});
 
-  return -1;
+// local storage
+function saveData() {
+  if (isStorageExist) {
+    const parsed = JSON.stringify(todos);
+    localStorage.setItem(STORAGE_KEY, parsed);
+    document.dispatchEvent(new Event(SAVED_EVENT));
+  }
 }
+
+function laodDataFromStorage() {
+  const serializeData = localStorage.getItem(STORAGE_KEY);
+  let data = JSON.parse(serializeData);
+
+  if (data !== null) {
+    for (const todo of data) {
+      todos.push(todo);
+    }
+  }
+  document.dispatchEvent(new Event(RENDER_EVENT));
+}
+
+function isStorageExist() {
+  if (typeof Storgae === undefined) {
+    alert("Browser kmau tidak mendukung local storage");
+    return false;
+  }
+
+  return true;
+}
+
+document.addEventListener(SAVED_EVENT, function () {
+  console.log(localStorage.getItem(STORAGE_KEY));
+});
